@@ -11,10 +11,11 @@ uintptr_t pGTASA = 0;
 
 extern "C" void OnModPreLoad() // A place for interfaces registering
 {
-    logger->SetTag("GTASA Utils");
+    logger->SetTag("SAUtils");
     pGTASA = aml->GetLib("libGTASA.so");
 
-    ((SAUtils*)sautils)->m_bHasFLA = aml->GetLib("libplugin_fastman92limitAdjuster_ANDROID_ARM32.so") != 0;
+    ((SAUtils*)sautils)->InitializeUtils();
+    ((SAUtils*)sautils)->m_pHasFLA = aml->GetLib("libplugin_fastman92limitAdjuster_ANDROID_ARM32.so");
     
     RegisterInterface("SAUtils", sautils);
 }
