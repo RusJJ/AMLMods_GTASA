@@ -2,6 +2,9 @@
 #include <mod/logger.h>
 #include <mod/config.h>
 
+#include "isautils.h"
+ISAUtils* sautils = nullptr;
+
 #define THUMB_ADDRESS(_address)   ((_address) | 1)
 
 MYMODCFG(net.rusjj.gtasa.drawdistance, GTA:SA Draw Distance, 1.0, RusJJ)
@@ -20,16 +23,20 @@ float fAspectRatioScaler = 0.0f;
 
 /* Configs */
 ConfigEntry* pNearClipOverride;
-ConfigEntry* pDrawDistanceOverride;
+ConfigEntry* pDrawDistanceOverride; int sautilsSettingId = 0;
 ConfigEntry* pStreamingDistanceScale;
 
 /* Lib Pointers */
 int* streamingMemoryAvailable;
 float* lodDistScale;
+void* gMobileMenu;
 
 /* Realloc */
 int16_t* pBlocksToBeRenderedOutsideWorldX;
 int16_t* pBlocksToBeRenderedOutsideWorldY;
+
+/* Functions Pointers */
+typedef float (*RetFloatFn)();
 
 DECL_HOOK(void*, RwCameraSetNearClipPlane, void* self, float a1)
 {
@@ -41,9 +48,9 @@ DECL_HOOK(void*, RwCameraSetNearClipPlane, void* self, float a1)
 }
 DECL_HOOK(void*, RwCameraSetFarClipPlane, void* self, float a1)
 {
-    if(self == maincamera && pDrawDistanceOverride->GetInt() >= 200)
+    if(self == maincamera)
     {
-        return RwCameraSetFarClipPlane(self, pDrawDistanceOverride->GetFloat());
+        if(pDrawDistanceOverride->GetInt() >= 200) return RwCameraSetFarClipPlane(self, pDrawDistanceOverride->GetFloat());
     }
     return RwCameraSetFarClipPlane(self, a1);
 }
@@ -57,24 +64,25 @@ DECL_HOOK(void*, CameraCreate, void* a1, void* a2, int a3)
 DECL_HOOK(void*, CameraProcess, uintptr_t self)
 {
     void* ret = CameraProcess(self);
-
     *(float*)(self + 236) *= fAspectRatioScaler;
     *(float*)(self + 240) *= fAspectRatioScaler;
-
     return ret;
 }
 
 DECL_HOOK(void*, CStreamingUpdate, void* self)
 {
-    logger->Info("unk_952098: %f", *(float*)(pGTASA + 0x952098));
-    *(float*)(pGTASA + 0x952098) = 1.5f;
     if(*streamingMemoryAvailable < nStreamingMemoryOverride)
         *streamingMemoryAvailable = nStreamingMemoryOverride;
     return CStreamingUpdate(self);
 }
 
+void RealDrawDistanceChanged(int oldVal, int newVal)
+{
+    pDrawDistanceOverride->SetInt(newVal);
+    cfg->Save();
+}
 
-TARGET_THUMB ASM_NAKED void jmp_HitBlock()
+TARGET_THUMB ASM_NAKED void HitWaterBlock_JMP()
 {
     __asm(
     ".hidden nWaterBlocksToRender\n"
@@ -131,14 +139,13 @@ void CodeRedirect(uintptr_t address, uintptr_t newAddress, bool isThumb)
     aml->Write(address, (uintptr_t)code, sizeof(code));
 }
 
-typedef float (*RetFloatFn)();
 extern "C" void OnModLoad()
 {
     logger->SetTag("GTASA Draw Distance");
     pGTASA = aml->GetLib("libGTASA.so");
 
     pNearClipOverride = cfg->Bind("NearClip", "0.1");
-    pDrawDistanceOverride = cfg->Bind("DrawDistance", "1200.0");
+    pDrawDistanceOverride = cfg->Bind("DrawDistance", "800.0");
     nStreamingMemoryOverride = cfg->Bind("PreferredStreamingMemMB", "1024")->GetInt() * 1024 * 1024;
     nWaterBlocksToRender = (unsigned int)cfg->Bind("WaterBlocksToRender", "384")->GetInt();
     pStreamingDistanceScale = cfg->Bind("StreamingDistanceScale", "1.0");
@@ -148,9 +155,11 @@ extern "C" void OnModLoad()
     fAspectRatioScaler = fRealAspectRatio * 0.75 * pStreamingDistanceScale->GetFloat(); // AspectRatio / 4:3
     streamingMemoryAvailable = (int*)(pGTASA + 0x685FA0);
 
+    gMobileMenu = (void*)(pGTASA + 0x6E006C);
+
     if(nWaterBlocksToRender > 1)
     {
-        if(nWaterBlocksToRender >= 69)
+        if(nWaterBlocksToRender > 70) // Default value is 0-69 (70) so don`t override if not necessary
         {
             pBlocksToBeRenderedOutsideWorldX = new int16_t[nWaterBlocksToRender];
             aml->Write(pGTASA + 0x6777C4, (uintptr_t)&pBlocksToBeRenderedOutsideWorldX, sizeof(void*));
@@ -160,7 +169,7 @@ extern "C" void OnModLoad()
         }
         --nWaterBlocksToRender;
         pointerWaterBlocksToRender = (pGTASA + 0x598694) | 1;
-        CodeRedirect(pGTASA + 0x59868C, (uintptr_t)&jmp_HitBlock, true);
+        CodeRedirect(pGTASA + 0x59868C, (uintptr_t)&HitWaterBlock_JMP, true); // From FLA
     }
 
     HOOKPLT(RwCameraSetNearClipPlane, pGTASA + 0x670C9C);
@@ -181,14 +190,13 @@ extern "C" void OnModLoad()
     bool bRemoveCarsBehind = cfg->Bind("DontRemoveVehicleBehindCamera", "1")->GetBool();
     if(bRemoveCarsBehind)
     {
-        //aml->PlaceJMP(pGTASA + 0x2EC660, pGTASA + 0x2EC6E8);
         aml->PlaceJMP(pGTASA + 0x2EC660, pGTASA + 0x2EC6D6);
     }
     
     // Do not delete peds behind the player camera
     if(cfg->Bind("DontRemovePedBehindCamera", "1")->GetBool())
     {
-        //aml->PlaceJMP(pGTASA + 0x2EC660, pGTASA + 0x2EC6E8);
+        aml->PlaceJMP(pGTASA + 0x4CE4EA, pGTASA + 0x4CE55C);
     }
 
     if(cfg->Bind("SpawnVehiclesInFrontOfPlayer", "1")->GetBool())
@@ -210,5 +218,11 @@ extern "C" void OnModLoad()
             aml->Unprot(pGTASA + 0x2E866F, sizeof(char));
             *(char*)(pGTASA + 0x2E866F) = 0xDB;
         }
+    }
+
+    sautils = (ISAUtils*)GetInterface("SAUtils");
+    if(sautils != nullptr)
+    {
+        sautils->AddSettingsItem(Display, "Real Draw Distance", pDrawDistanceOverride->GetInt(), 200, 4000, RealDrawDistanceChanged, true);
     }
 }
