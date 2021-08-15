@@ -15,10 +15,10 @@ extern "C" void OnModPreLoad()
         *(char*)(pGameLib + 0x1E880C + 13) = 'x';
         *(char*)(pGameLib + 0x1E880C + 14) = 't';
         // PVR
-        aml->Unprot(pGameLib + 0x1E8820, 20);
-        *(char*)(pGameLib + 0x1E8820 + 12) = 'd';
-        *(char*)(pGameLib + 0x1E8820 + 13) = 'x';
-        *(char*)(pGameLib + 0x1E8820 + 14) = 't';
+        //aml->Unprot(pGameLib + 0x1E8820, 20);
+        //*(char*)(pGameLib + 0x1E8820 + 12) = 'd';
+        //*(char*)(pGameLib + 0x1E8820 + 13) = 'x';
+        //*(char*)(pGameLib + 0x1E8820 + 14) = 't';
 
         // TextureDatabase::LoadDataOffsets
         // ETC
@@ -27,10 +27,10 @@ extern "C" void OnModPreLoad()
         *(char*)(pGameLib + 0x1E8C74 + 14) = 'x';
         *(char*)(pGameLib + 0x1E8C74 + 15) = 't';
         // PVR
-        aml->Unprot(pGameLib + 0x1E8C84, 16);
-        *(char*)(pGameLib + 0x1E8C84 + 13) = 'd';
-        *(char*)(pGameLib + 0x1E8C84 + 14) = 'x';
-        *(char*)(pGameLib + 0x1E8C84 + 15) = 't';
+        //aml->Unprot(pGameLib + 0x1E8C84, 16);
+        //*(char*)(pGameLib + 0x1E8C84 + 13) = 'd';
+        //*(char*)(pGameLib + 0x1E8C84 + 14) = 'x';
+        //*(char*)(pGameLib + 0x1E8C84 + 15) = 't';
         return;
     }
 
@@ -39,10 +39,10 @@ extern "C" void OnModPreLoad()
     {
         // TextureDatabase::LoadThumbs
         // PVR
-        aml->Unprot(pGameLib + 0x354F74, 17);
-        *(char*)(pGameLib + 0x354F74 + 10) = 'd';
-        *(char*)(pGameLib + 0x354F74 + 11) = 'x';
-        *(char*)(pGameLib + 0x354F74 + 12) = 't';
+        //aml->Unprot(pGameLib + 0x354F74, 17);
+        //*(char*)(pGameLib + 0x354F74 + 10) = 'd';
+        //*(char*)(pGameLib + 0x354F74 + 11) = 'x';
+        //*(char*)(pGameLib + 0x354F74 + 12) = 't';
         // ETC
         aml->Unprot(pGameLib + 0x354F88, 17);
         *(char*)(pGameLib + 0x354F88 + 10) = 'd';
@@ -51,10 +51,10 @@ extern "C" void OnModPreLoad()
 
         // TextureDatabase::LoadDataOffsets
         // PVR
-        aml->Unprot(pGameLib + 0x354FBC, 13);
-        *(char*)(pGameLib + 0x354FBC + 10) = 'd';
-        *(char*)(pGameLib + 0x354FBC + 11) = 'x';
-        *(char*)(pGameLib + 0x354FBC + 12) = 't';
+        //aml->Unprot(pGameLib + 0x354FBC, 13);
+        //*(char*)(pGameLib + 0x354FBC + 10) = 'd';
+        //*(char*)(pGameLib + 0x354FBC + 11) = 'x';
+        //*(char*)(pGameLib + 0x354FBC + 12) = 't';
         // ETC
         aml->Unprot(pGameLib + 0x354FCC, 17);
         *(char*)(pGameLib + 0x354FCC + 10) = 'd';
