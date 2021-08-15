@@ -48,10 +48,8 @@ DECL_HOOK(void*, RwCameraSetNearClipPlane, void* self, float a1)
 }
 DECL_HOOK(void*, RwCameraSetFarClipPlane, void* self, float a1)
 {
-    if(self == maincamera)
-    {
-        if(pDrawDistanceOverride->GetInt() >= 200) return RwCameraSetFarClipPlane(self, pDrawDistanceOverride->GetFloat());
-    }
+    if(self == maincamera && pDrawDistanceOverride->GetInt() > 200)
+        return RwCameraSetFarClipPlane(self, pDrawDistanceOverride->GetFloat());
     return RwCameraSetFarClipPlane(self, a1);
 }
 
