@@ -9,7 +9,7 @@ NEEDGAME(com.rockstargames.gtasa)
 
 uintptr_t pGTASA = 0;
 
-extern "C" void OnModPreLoad() // A place for interfaces registering
+extern "C" void OnModPreLoad() // PreLoad is a place for interfaces registering
 {
     logger->SetTag("SAUtils");
     pGTASA = aml->GetLib("libGTASA.so");

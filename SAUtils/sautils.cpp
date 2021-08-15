@@ -18,7 +18,7 @@ struct AdditionalSetting
 
 std::vector<AdditionalSetting*> gMoreSettings;
 
-int nNextSettingNum = MODS_SETTING_STARTING_FROM - 1;
+int nNextSettingNum = MODS_SETTINGS_STARTING_FROM - 1;
 
 typedef void* (*TextureDBGetTextureFn)(uintptr_t a1, uintptr_t a2);
 typedef void (*AsciiToGxtCharFn)(const char*, unsigned short*);
@@ -222,7 +222,7 @@ int SAUtils::AddSettingsItem(eTypeOfSettings typeOf, const char* name, int initV
 
 int SAUtils::ValueOfSettingsItem(int settingId)
 {
-    if(settingId < MODS_SETTING_STARTING_FROM || settingId > nNextSettingNum) return 0;
+    if(settingId < MODS_SETTINGS_STARTING_FROM || settingId > nNextSettingNum) return 0;
     return pNewSettings[8 * settingId + 2];
 }
 

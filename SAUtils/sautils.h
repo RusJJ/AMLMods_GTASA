@@ -1,6 +1,6 @@
 #include <isautils.h>
 
-#define MODS_SETTING_STARTING_FROM  37
+#define MODS_SETTINGS_STARTING_FROM  37
 
 class SAUtils : public ISAUtils
 {
