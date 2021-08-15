@@ -4,7 +4,7 @@
 
 class CEntity;
 
-MYMODCFG(net.rusjj.gtasa.2dfx, Project 2DFX, 1.0, RusJJ)
+MYMODCFG(net.rusjj.gtasa.2dfx, Project 2DFX, 0.1, RusJJ)
 NEEDGAME(com.rockstargames.gtasa)
 
 uintptr_t       pGTASA = 0;
