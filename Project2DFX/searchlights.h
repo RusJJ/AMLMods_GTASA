@@ -4,14 +4,15 @@
 #include <vector>
 #include <map>
 
-#include <cvector.h>
-#include <crgba.h>
-#include <RwV3D.h>
+#include <gtasa_engine/cvector.h>
+#include <gtasa_engine/crgba.h>
+#include <gtasa_engine/RwV3D.h>
+
+class CEntity;
+class CLamppostInfo;
 
 extern std::vector<CLamppostInfo>* m_pLampposts;
 extern std::map<unsigned int, CLamppostInfo>* pFileContent;
-
-class CEntity;
 
 class CLamppostInfo
 {

@@ -1,7 +1,7 @@
 #ifndef _CVECTOR
 #define _CVECTOR
 
-#include <RwV3D.h>
+#include <gtasa_engine/RwV3D.h>
 #include <cmath>
 
 class CVector

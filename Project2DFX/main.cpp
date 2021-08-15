@@ -28,7 +28,7 @@ float           fSearchlightEffectVisibilityFactor;
 const char*     szCustomCoronaTexturePath;
 
 char(*GetIsTimeInRange)(char hourA, char hourB);
-float(*FindGroundZFor3DCoord)(float x, float y, float z, BOOL *pCollisionResult, CEntity **pGroundObject);
+float(*FindGroundZFor3DCoord)(float x, float y, float z, bool* pCollisionResult, CEntity **pGroundObject);
 
 DECL_HOOK(int, FileLoaderLoadObject, const char* a1)
 {
@@ -164,7 +164,7 @@ extern "C" void OnModLoad()
     TheCamera = (void*)(pGTASA + 0x951FA8);
 
     GetIsTimeInRange = (char(*)(char, char)) (pGTASA + 0x1956A0);
-    FindGroundZFor3DCoord = (float(*)(float, float, float, BOOL *, CEntity **)) (pGTASA + 0x67022C);
+    FindGroundZFor3DCoord = (float(*)(float, float, float, bool*, CEntity**)) (pGTASA + 0x67022C);
 
     HOOKPLT(FileLoaderLoadObject, pGTASA + 0x6714F8);
     HOOKPLT(FileLoaderLoadTimeObject, pGTASA + 0x67062C);

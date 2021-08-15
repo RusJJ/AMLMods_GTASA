@@ -19,7 +19,8 @@ extern float 								fSearchlightEffectVisibilityFactor;
 
 void CSearchLights::RenderSearchLightsSA()
 {
-    if(*flWeatherFoggyness)
+	/* It needs a full rework */
+    /*if(*flWeatherFoggyness)
     {
         if (GetIsTimeInRange(20, 7) && *nActiveInterior == 0)
         {
@@ -66,7 +67,7 @@ void CSearchLights::RenderSearchLightsSA()
 			static auto ResetRenderStatesForSpotLights = (void(*)()) (pGTASA + 0x196C1C);
 			ResetRenderStatesForSpotLights();
         }
-    }
+    }*/
 }
 
 void CSearchLights::DrawCustomSpotLightSA(RwV3D StartPoint, RwV3D EndPoint, float TargetRadius, float baseRadius, float slColorFactor1, char slColorFactor2, float slAlpha)
