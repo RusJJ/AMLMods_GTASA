@@ -1,17 +1,19 @@
+#include <string>
 #include <mod/amlmod.h>
 #include <mod/logger.h>
 #include <mod/config.h>
 
-#include <string>
-#include "isautils.h"
-ISAUtils* sautils = nullptr;
+#define sizeofA(__aVar)  ((int)(sizeof(__aVar)/sizeof(__aVar[0])))
 
-MYMODCFG(net.rusjj.gtasa.moresettings, GTA:SA More Settings, 1.0, RusJJ)
+MYMODCFG(net.rusjj.gtasa.moresettings, GTA:SA More Settings, 1.1, RusJJ)
 NEEDGAME(com.rockstargames.gtasa)
 BEGIN_DEPLIST()
     ADD_DEPENDENCY_VER(net.rusjj.aml, 1.0)
     ADD_DEPENDENCY_VER(net.rusjj.gtasa.utils, 1.0)
 END_DEPLIST()
+
+#include "isautils.h"
+ISAUtils* sautils = nullptr;
 
 /* Saves */
 uintptr_t pGTASA = 0;
@@ -19,23 +21,27 @@ ConfigEntry* pCfgDebugFPS;
 ConfigEntry* pCfgFPS;
 //ConfigEntry* pCfgFogReduction;
 
+const char* pYesNo[] = 
+{
+    "FEM_OFF",
+    "FEM_ON",
+};
+char nFPSArray[] = 
+{
+    20, 30, 45, 60, 90, 120,
+};
+const char* pFPSArray[] = 
+{
+    "20 FPS", "30 FPS", "45 FPS", "60 FPS", "90 FPS", "120 FPS",
+};
+static_assert(sizeofA(nFPSArray) == sizeofA(pFPSArray), "nFPSArray`s and pFPSArray`s sizes are NOT equal!");
+
 void DebugFPSChanged(int oldVal, int newVal)
 {
     pCfgDebugFPS->SetBool(newVal==0?false:true);
     *(bool*)(pGTASA + 0x98F1AD) = pCfgDebugFPS->GetBool();
     cfg->Save();
 }
-
-char nFPSArray[] = 
-{
-    20,
-    30,
-    45,
-    60,
-    90,
-    120,
-    0,
-};
 void FPSChanged(int oldVal, int newVal)
 {
     pCfgFPS->SetInt(newVal);
@@ -51,21 +57,6 @@ void FPSChanged(int oldVal, int newVal)
 //    cfg->Save();
 //}
 
-const char* pYesNo[] = 
-{
-    "FEM_OFF",
-    "FEM_ON",
-};
-const char* pFPSArray[] = 
-{
-    "20 FPS",
-    "30 FPS",
-    "45 FPS",
-    "60 FPS",
-    "90 FPS",
-    "120 FPS",
-    "Unknown FPS",
-};
 extern "C" void OnModLoad()
 {
     logger->SetTag("GTASA More Settings");
@@ -78,24 +69,22 @@ extern "C" void OnModLoad()
     sautils = (ISAUtils*)GetInterface("SAUtils");
     if(sautils != nullptr)
     {
-        pCfgDebugFPS = cfg->Bind("DebugFPS", (*(bool*)(pGTASA + 0x98F1AD)?"1":"0"), "Tweaks");
+        pCfgDebugFPS = cfg->Bind("DebugFPS", *(bool*)(pGTASA + 0x98F1AD), "Tweaks");
         *(bool*)(pGTASA + 0x98F1AD) = pCfgDebugFPS->GetBool();
-        sautils->AddSettingsItem(Game, "Debug FPS", pCfgDebugFPS->GetInt(), 0, 1, DebugFPSChanged, false, (void*)pYesNo);
+        sautils->AddSettingsItem(Game, "Debug FPS", pCfgDebugFPS->GetInt(), 0, sizeofA(pYesNo)-1, DebugFPSChanged, false, (void*)pYesNo);
 
-        int ifps = 0;
-        for(;ifps < 6; ++ifps)
+        // Lookup for FPS
+        pCfgFPS = cfg->Bind("FPS", 1, "Tweaks"); // Def is 30 FPS (do not detected it automatically, useless)
+        int nFPS = pCfgFPS->GetInt();
+        if(nFPS >= 0 && nFPS < sizeofA(nFPSArray))
         {
-            if(nFPSArray[ifps] == *(char*)(pGTASA + 0x5E4978))
-                break;
+            nFPS = 1;
+            pCfgFPS->SetInt(1);
+            cfg->Save();
         }
-        if(ifps >= 6) ifps = -1;
-        pCfgFPS = cfg->Bind("FPS", std::to_string(ifps).c_str(), "Tweaks");
-        if(ifps > -1 && ifps < 6)
-        {
-            *(char*)(pGTASA + 0x5E4978) = nFPSArray[pCfgFPS->GetInt()];
-            *(char*)(pGTASA + 0x5E4990) = nFPSArray[pCfgFPS->GetInt()];
-        }
-        sautils->AddSettingsItem(Game, "FPS", ifps!=-1?ifps:6, 0, 5, FPSChanged, false, (void*)pFPSArray);
+        *(char*)(pGTASA + 0x5E4978) = nFPSArray[nFPS];
+        *(char*)(pGTASA + 0x5E4990) = nFPSArray[nFPS];
+        sautils->AddSettingsItem(Game, "FPS", pCfgFPS->GetInt(), 0, sizeofA(pFPSArray)-1, FPSChanged, false, (void*)pFPSArray);
 
         // Seems like it`s not working :(
         //char defValStringified[16];
