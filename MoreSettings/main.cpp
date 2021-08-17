@@ -76,7 +76,7 @@ extern "C" void OnModLoad()
         // Lookup for FPS
         pCfgFPS = cfg->Bind("FPS", 1, "Tweaks"); // Def is 30 FPS (do not detected it automatically, useless)
         int nFPS = pCfgFPS->GetInt();
-        if(nFPS >= 0 && nFPS < sizeofA(nFPSArray))
+        if(nFPS < 0 || nFPS >= sizeofA(nFPSArray))
         {
             nFPS = 1;
             pCfgFPS->SetInt(1);
