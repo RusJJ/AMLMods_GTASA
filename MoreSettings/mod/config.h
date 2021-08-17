@@ -10,6 +10,9 @@ public:
     void Init();
     void Save();
     ConfigEntry* Bind(const char* szKey, const char* szDefaultValue, const char* szSection = "Preferences");
+    ConfigEntry* Bind(const char* szKey, int nDefaultValue, const char* szSection = "Preferences");
+    ConfigEntry* Bind(const char* szKey, float flDefaultValue, const char* szSection = "Preferences");
+    ConfigEntry* Bind(const char* szKey, bool bDefaultValue, const char* szSection = "Preferences");
     static Config* GetConfig();
 private:
     bool m_bInitialized;
