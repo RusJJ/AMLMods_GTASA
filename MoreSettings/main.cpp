@@ -3,6 +3,8 @@
 #include <mod/logger.h>
 #include <mod/config.h>
 
+//#include <ida_pro_defs.h>
+
 #define sizeofA(__aVar)  ((int)(sizeof(__aVar)/sizeof(__aVar[0])))
 
 MYMODCFG(net.rusjj.gtasa.moresettings, GTA:SA More Settings, 1.1, RusJJ)
@@ -19,7 +21,13 @@ ISAUtils* sautils = nullptr;
 uintptr_t pGTASA = 0;
 ConfigEntry* pCfgDebugFPS;
 ConfigEntry* pCfgFPS;
+ConfigEntry* pCfgBackfaceCulling;
 //ConfigEntry* pCfgFogReduction;
+
+float* pHeatHaze;
+void** pWeatherHeatHazeControl;
+float* pSpeedFXManualSpeedCurrentFrame;
+uintptr_t* pModelInfoPtrs;
 
 const char* pYesNo[] = 
 {
@@ -49,21 +57,34 @@ void FPSChanged(int oldVal, int newVal)
     *(char*)(pGTASA + 0x5E4990) = nFPSArray[newVal];
     cfg->Save();
 }
-
+void BackfaceCullingChanged(int oldVal, int newVal)
+{
+    pCfgBackfaceCulling->SetInt(newVal);
+    cfg->Save();
+}
 //void OnFogReductionChange(int oldVal, int newVal)
 //{
 //    pCfgFogReduction->SetFloat(0.1f * newVal);
 //    *(float*)(pGTASA + 0x41F300) = pCfgFogReduction->GetFloat();
 //    cfg->Save();
 //}
+DECL_HOOK(void, RwRenderStateSet, int state, int val)
+{
+    if(state == 20 && pCfgBackfaceCulling->GetBool())
+    {
+        RwRenderStateSet(20, 1);
+        return;
+    }
+    RwRenderStateSet(state, val);
+}
 
 extern "C" void OnModLoad()
 {
     logger->SetTag("GTASA More Settings");
     pGTASA = aml->GetLib("libGTASA.so");
     
-    aml->Unprot(pGTASA + 0x98F1AD, sizeof(bool));
-    aml->Unprot(pGTASA + 0x5E4978, sizeof(char)); aml->Unprot(pGTASA + 0x5E4990, sizeof(char));
+    aml->Unprot(pGTASA + 0x98F1AD, sizeof(bool)); // Debug FPS
+    aml->Unprot(pGTASA + 0x5E4978, sizeof(char)); aml->Unprot(pGTASA + 0x5E4990, sizeof(char)); // FPS
     //aml->Unprot(pGTASA + 0x41F300, sizeof(float));
 
     sautils = (ISAUtils*)GetInterface("SAUtils");
@@ -85,11 +106,16 @@ extern "C" void OnModLoad()
         *(char*)(pGTASA + 0x5E4978) = nFPSArray[nFPS];
         *(char*)(pGTASA + 0x5E4990) = nFPSArray[nFPS];
         sautils->AddSettingsItem(Game, "FPS", pCfgFPS->GetInt(), 0, sizeofA(pFPSArray)-1, FPSChanged, false, (void*)pFPSArray);
-
+        
         // Seems like it`s not working :(
         //char defValStringified[16];
         //sprintf(defValStringified, "%f", *(float*)(pGTASA + 0x41F300));
         //pCfgFogReduction = cfg->Bind("FogReduction", defValStringified, "Tweaks");
         //sautils->AddSettingsItem(Display, "Fog Reduction", (int)(pCfgFogReduction->GetFloat() * 10.0f), 0, 250, OnFogReductionChange, true);
+
+        // Backface Culling
+        pCfgBackfaceCulling = cfg->Bind("DisableBackfaceCulling", false, "Tweaks");
+        sautils->AddSettingsItem(Display, "Disable Backface Culling", pCfgBackfaceCulling->GetBool(), 0, sizeofA(pYesNo)-1, BackfaceCullingChanged, false, (void*)pYesNo);
+        HOOKPLT(RwRenderStateSet, pGTASA + 0x6711B8);
     }
 }
