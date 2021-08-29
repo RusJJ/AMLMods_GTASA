@@ -7,7 +7,7 @@ ISAUtils* sautils = nullptr;
 
 #define THUMB_ADDRESS(_address)   ((_address) | 1)
 
-MYMODCFG(net.rusjj.gtasa.drawdistance, GTA:SA Draw Distance, 1.0, RusJJ)
+MYMODCFG(net.rusjj.gtasa.drawdistance, GTA:SA Draw Distance, 1.1, RusJJ)
 NEEDGAME(com.rockstargames.gtasa)
 BEGIN_DEPLIST()
     ADD_DEPENDENCY_VER(net.rusjj.aml, 1.0)
@@ -19,6 +19,7 @@ void* maincamera; // RwCamera*
 unsigned int nStreamingMemoryOverride;
 unsigned int nWaterBlocksToRender = 0;
 uintptr_t pointerWaterBlocksToRender = 0;
+float fRealAspectRatio = 0.0f;
 float fAspectRatioScaler = 0.0f;
 
 /* Configs */
@@ -61,6 +62,8 @@ DECL_HOOK(void*, CameraCreate, void* a1, void* a2, int a3)
 
 DECL_HOOK(void*, CameraProcess, uintptr_t self)
 {
+    fAspectRatioScaler = fRealAspectRatio * 0.75 * pStreamingDistanceScale->GetFloat(); // AspectRatio / 4:3
+    
     void* ret = CameraProcess(self);
     *(float*)(self + 236) *= fAspectRatioScaler;
     *(float*)(self + 240) *= fAspectRatioScaler;
@@ -74,10 +77,28 @@ DECL_HOOK(void*, CStreamingUpdate, void* self)
     return CStreamingUpdate(self);
 }
 
+// SAUtils
+#define DEFAULT_DRAWDISTANCE 800.0f
+char szRetDrawDistanceSlider[8];
 void RealDrawDistanceChanged(int oldVal, int newVal)
 {
     pDrawDistanceOverride->SetInt(newVal);
     cfg->Save();
+}
+const char* RealDrawDistanceDraw(int nNewValue)
+{
+    sprintf(szRetDrawDistanceSlider, "x%.2f", (nNewValue / DEFAULT_DRAWDISTANCE));
+    return szRetDrawDistanceSlider;
+}
+void StreamingDistanceChanged(int oldVal, int newVal)
+{
+    pStreamingDistanceScale->SetFloat(0.01f * newVal);
+    cfg->Save();
+}
+const char* StreamingDistanceDraw(int nNewValue)
+{
+    sprintf(szRetDrawDistanceSlider, "x%.2f", (nNewValue / 100.0f));
+    return szRetDrawDistanceSlider;
 }
 
 TARGET_THUMB ASM_NAKED void HitWaterBlock_JMP()
@@ -148,9 +169,8 @@ extern "C" void OnModLoad()
     nWaterBlocksToRender = (unsigned int)cfg->Bind("WaterBlocksToRender", "384")->GetInt();
     pStreamingDistanceScale = cfg->Bind("StreamingDistanceScale", "1.0");
 
-    float fRealAspectRatio = ((RetFloatFn)(pGTASA + 0x18E984))();
+    fRealAspectRatio = ((RetFloatFn)(pGTASA + 0x18E984))();
     if(fRealAspectRatio < 1.0f) fRealAspectRatio = 1.0f / fRealAspectRatio;
-    fAspectRatioScaler = fRealAspectRatio * 0.75 * pStreamingDistanceScale->GetFloat(); // AspectRatio / 4:3
     streamingMemoryAvailable = (int*)(pGTASA + 0x685FA0);
 
     gMobileMenu = (void*)(pGTASA + 0x6E006C);
@@ -221,6 +241,7 @@ extern "C" void OnModLoad()
     sautils = (ISAUtils*)GetInterface("SAUtils");
     if(sautils != nullptr)
     {
-        sautils->AddSettingsItem(Display, "Real Draw Distance", pDrawDistanceOverride->GetInt(), 200, 4000, RealDrawDistanceChanged, true);
+        sautils->AddSliderItem(Display, "Real Draw Distance", pDrawDistanceOverride->GetInt(), 200, 4000, RealDrawDistanceChanged, RealDrawDistanceDraw);
+        sautils->AddSliderItem(Display, "Streaming Distance Scale", 100 * pStreamingDistanceScale->GetFloat(), 100 * 0.25f, 100 * 5.0f, StreamingDistanceChanged, StreamingDistanceDraw);
     }
 }

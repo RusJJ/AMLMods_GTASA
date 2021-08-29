@@ -10,32 +10,60 @@ struct AdditionalSetting
     eTypeOfSettings eType;
     const char* szName;
     OnSettingChangedFn fnOnValueChange;
+    OnSettingDrawedFn fnOnValueDraw;
     bool bIsSlider;
     int nInitVal;
     int nSavedVal;
     int nMaxVal;
 };
 
+/* Saves */
 std::vector<AdditionalSetting*> gMoreSettings;
-
 int nNextSettingNum = MODS_SETTINGS_STARTING_FROM - 1;
+int pNewSettings[8 * MAX_SETTINGS]; // A new char MobileSettings::settings[37*8*4]
 
+/* Funcs */
 typedef void* (*TextureDBGetTextureFn)(uintptr_t a1, uintptr_t a2);
-typedef void (*AsciiToGxtCharFn)(const char*, unsigned short*);
-
-
-/* Funcs */
-AsciiToGxtCharFn fnAsciiToGxtChar;
 typedef void* (*SettingsAddItemFn)(void* a1, uintptr_t a2);
-/* Funcs */
 
 /* GTASA Pointers */
-extern uintptr_t pGTASA;
+extern uintptr_t pGameLib;
 unsigned short* gxtErrorString;
-unsigned char* aScreens;
+//unsigned char* aScreens;
 SettingsAddItemFn fnSettingsAddItem;
 /* GTASA Pointers */
 
+bool bIsThisModdedSlider = false;
+int nSettingId = 0;
+DECL_HOOK(void, SelectScreenRender, uintptr_t self, float a1, float a2, float a3, float a4, float a5, float a6)
+{
+    nSettingId = *(int*)(self + 8);
+    if(nSettingId >= MODS_SETTINGS_STARTING_FROM && nSettingId < MAX_SETTINGS && pNewSettings[8 * nSettingId + 7] == 1)
+    {
+        bIsThisModdedSlider = true;
+    }
+    SelectScreenRender(self, a1, a2, a3, a4, a5, a6);
+    bIsThisModdedSlider = false;
+}
+
+DECL_HOOK(unsigned short*, AsciiToGxtChar, const char* txt, unsigned short* ret)
+{
+    if(bIsThisModdedSlider)
+    {
+        auto vStart = gMoreSettings.begin();
+        auto vEnd = gMoreSettings.end();
+        while(vStart != vEnd)
+        {
+            if((*vStart)->nSettingId == nSettingId)
+            {
+                if((*vStart)->fnOnValueDraw != nullptr) return AsciiToGxtChar((*vStart)->fnOnValueDraw(pNewSettings[8 * nSettingId + 2]), ret);
+                break;
+            }
+            ++vStart;
+        }
+    }
+    return AsciiToGxtChar(txt, ret);
+}
 
 DECL_HOOK(unsigned short*, GxtTextGet, void* self, const char* txt)
 {
@@ -43,7 +71,7 @@ DECL_HOOK(unsigned short*, GxtTextGet, void* self, const char* txt)
     unsigned short* ret = GxtTextGet(self, txt);
     if(ret == gxtErrorString)
     {
-        fnAsciiToGxtChar(txt, gxtTxt);
+        AsciiToGxtChar(txt, gxtTxt);
         return gxtTxt;
     }
     return ret;
@@ -70,7 +98,7 @@ void AddSettingsToScreen(void* screen)
         if((*vStart)->eType == nLatestSettingsOpened)
         {
             uintptr_t menuItem = (uintptr_t)(new char[0x1Cu]);
-            *(uintptr_t*)menuItem = pGTASA + 0x662848;
+            *(uintptr_t*)menuItem = pGameLib + 0x662848;
             *(const char**)(menuItem + 4) = (*vStart)->szName;
             *(int*)(menuItem + 8) = (*vStart)->nSettingId;
             *(int*)(menuItem + 12) = 0;
@@ -162,28 +190,47 @@ DECL_HOOK(void, SelectScreenOnDestroy, void* self)
     SelectScreenOnDestroy(self);
 }
 
-/* A new MobileSettings::settings[37*8*4] */
-int pNewSettings[32 * 100];
-void SAUtils::InitializeUtils()
+void SAUtils::InitializeSAUtils()
 {
-    gxtErrorString = (unsigned short*)(pGTASA + 0xA01A90);
-    aScreens = (unsigned char*)(pGTASA + 0x6AB480);
+    gxtErrorString = (unsigned short*)(pGameLib + 0xA01A90);
+    //aScreens = (unsigned char*)(pGameLib + 0x6AB480);
 
-    aml->Unprot(pGTASA + 0x679A40, sizeof(void*));
-    *(uintptr_t*)(pGTASA + 0x679A40) = (uintptr_t)pNewSettings;
-    memcpy(pNewSettings, (int*)(pGTASA + 0x6E03F4), 1184);
+    aml->Unprot(pGameLib + 0x679A40, sizeof(void*));
+    *(uintptr_t*)(pGameLib + 0x679A40) = (uintptr_t)pNewSettings;
+    memcpy(pNewSettings, (int*)(pGameLib + 0x6E03F4), 1184);
 
-    HOOKPLT(GxtTextGet, pGTASA + 0x66E78C);
-    HOOKPLT(NewScreen_Controls, pGTASA + 0x675CD8);
-    HOOKPLT(NewScreen_Game, pGTASA + 0x674310);
-    HOOKPLT(NewScreen_Display, pGTASA + 0x675150);
-    HOOKPLT(NewScreen_Audio, pGTASA + 0x66FBA4);
-    HOOKPLT(NewScreen_Language, pGTASA + 0x675D90);
-    HOOKPLT(SelectScreenAddItem, pGTASA + 0x674518);
-    HOOKPLT(SelectScreenOnDestroy, pGTASA + 0x673FD8);
+    HOOKPLT(SelectScreenRender, pGameLib + 0x662850);
+    HOOKPLT(AsciiToGxtChar, pGameLib + 0x6724F8);
+    HOOKPLT(GxtTextGet, pGameLib + 0x66E78C);
+    HOOKPLT(NewScreen_Controls, pGameLib + 0x675CD8);
+    HOOKPLT(NewScreen_Game, pGameLib + 0x674310);
+    HOOKPLT(NewScreen_Display, pGameLib + 0x675150);
+    HOOKPLT(NewScreen_Audio, pGameLib + 0x66FBA4);
+    HOOKPLT(NewScreen_Language, pGameLib + 0x675D90);
+    HOOKPLT(SelectScreenAddItem, pGameLib + 0x674518);
+    HOOKPLT(SelectScreenOnDestroy, pGameLib + 0x673FD8);
 
-    fnAsciiToGxtChar = (AsciiToGxtCharFn)(pGTASA + 0x196430);
-    fnSettingsAddItem = (SettingsAddItemFn)(pGTASA + 0x19C840);
+    fnSettingsAddItem = (SettingsAddItemFn)(pGameLib + 0x19C840);
+}
+void SAUtils::InitializeVCUtils()
+{
+    gxtErrorString = (unsigned short*)(pGameLib + 0x716C2C);
+    //aScreens = (unsigned char*)(pGameLib + 0x6AB480);
+
+    aml->Unprot(pGameLib + 0x679A40, sizeof(void*));
+    *(uintptr_t*)(pGameLib + 0x679A40) = (uintptr_t)pNewSettings;
+    memcpy(pNewSettings, (int*)(pGameLib + 0x6E03F4), 1184);
+
+    HOOKPLT(GxtTextGet, pGameLib + 0x66E78C);
+    HOOKPLT(NewScreen_Controls, pGameLib + 0x675CD8);
+    HOOKPLT(NewScreen_Game, pGameLib + 0x674310);
+    HOOKPLT(NewScreen_Display, pGameLib + 0x675150);
+    HOOKPLT(NewScreen_Audio, pGameLib + 0x66FBA4);
+    HOOKPLT(NewScreen_Language, pGameLib + 0x675D90);
+    HOOKPLT(SelectScreenAddItem, pGameLib + 0x674518);
+    HOOKPLT(SelectScreenOnDestroy, pGameLib + 0x673FD8);
+
+    fnSettingsAddItem = (SettingsAddItemFn)(pGameLib + 0x19C840);
 }
 
 
@@ -199,6 +246,8 @@ uintptr_t SAUtils::IsFLALoaded()
 
 int SAUtils::AddSettingsItem(eTypeOfSettings typeOf, const char* name, int initVal, int minVal, int maxVal, OnSettingChangedFn fnOnValueChange, bool isSlider, void* switchesArray)
 {
+    if(nNextSettingNum >= MAX_SETTINGS) return -1;
+
     ++nNextSettingNum;
     AdditionalSetting* pNew = new AdditionalSetting;
     pNew->nSettingId = nNextSettingNum;
@@ -224,6 +273,59 @@ int SAUtils::ValueOfSettingsItem(int settingId)
 {
     if(settingId < MODS_SETTINGS_STARTING_FROM || settingId > nNextSettingNum) return 0;
     return pNewSettings[8 * settingId + 2];
+}
+
+// 1.1
+
+int SAUtils::AddClickableItem(eTypeOfSettings typeOf, const char* name, int initVal, int minVal, int maxVal, const char** switchesArray, OnSettingChangedFn fnOnValueChange)
+{
+    if(nNextSettingNum >= MAX_SETTINGS) return -1;
+
+    ++nNextSettingNum;
+    AdditionalSetting* pNew = new AdditionalSetting;
+    pNew->nSettingId = nNextSettingNum;
+    pNew->eType = typeOf;
+    pNew->szName = name;
+    pNew->fnOnValueChange = fnOnValueChange;
+    pNew->fnOnValueDraw = nullptr;
+    pNew->bIsSlider = false;
+    pNew->nInitVal = (int)initVal;
+    pNew->nSavedVal = (int)initVal;
+    pNew->nMaxVal = maxVal;
+    gMoreSettings.push_back(pNew);
+
+    pNewSettings[8 * nNextSettingNum + 1] = (int)switchesArray;
+    pNewSettings[8 * nNextSettingNum + 2] = initVal;
+    pNewSettings[8 * nNextSettingNum + 4] = minVal;
+    pNewSettings[8 * nNextSettingNum + 5] = maxVal;
+    pNewSettings[8 * nNextSettingNum + 7] = 0;
+
+    return nNextSettingNum;
+}
+int SAUtils::AddSliderItem(eTypeOfSettings typeOf, const char* name, int initVal, int minVal, int maxVal, OnSettingChangedFn fnOnValueChange, OnSettingDrawedFn fnOnValueDraw)
+{
+    if(nNextSettingNum >= MAX_SETTINGS) return -1;
+
+    ++nNextSettingNum;
+    AdditionalSetting* pNew = new AdditionalSetting;
+    pNew->nSettingId = nNextSettingNum;
+    pNew->eType = typeOf;
+    pNew->szName = name;
+    pNew->fnOnValueChange = fnOnValueChange;
+    pNew->fnOnValueDraw = fnOnValueDraw;
+    pNew->bIsSlider = true;
+    pNew->nInitVal = (int)initVal;
+    pNew->nSavedVal = (int)initVal;
+    pNew->nMaxVal = maxVal;
+    gMoreSettings.push_back(pNew);
+
+    pNewSettings[8 * nNextSettingNum + 1] = (int)nullptr;
+    pNewSettings[8 * nNextSettingNum + 2] = initVal;
+    pNewSettings[8 * nNextSettingNum + 4] = minVal;
+    pNewSettings[8 * nNextSettingNum + 5] = maxVal;
+    pNewSettings[8 * nNextSettingNum + 7] = 1;
+
+    return nNextSettingNum;
 }
 
 static SAUtils sautilsLocal;
