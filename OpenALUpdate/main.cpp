@@ -8,7 +8,7 @@
 #include <AL/alext.h>
 #include <AL/efx.h>
 
-MYMOD(net.rusjj.gtasa.openal, OpenAL Soft, 1.0, kcat & RusJJ & TheOfficialFloW)
+MYMOD(net.rusjj.gtasa.openal, OpenAL Soft, 1.0, kcat & TheOfficialFloW & RusJJ)
 
 uintptr_t pGTASA = 0;
 
