@@ -1,6 +1,9 @@
 #include <mod/amlmod.h>
 #include <mod/logger.h>
 #include <mod/config.h>
+MYMODCFG(net.rusjj.gtasa.openal, OpenAL Soft, 1.0, kcat & TheOfficialFloW & RusJJ)
+
+#define sizeofA(__aVar)  ((int)(sizeof(__aVar)/sizeof(__aVar[0])))
 
 #include <dlfcn.h>
 #include <AL/al.h>
@@ -8,16 +11,58 @@
 #include <AL/alext.h>
 #include <AL/efx.h>
 
-MYMOD(net.rusjj.gtasa.openal, OpenAL Soft, 1.0, kcat & RusJJ & TheOfficialFloW)
+#include "isautils.h"
+ISAUtils* sautils = nullptr;
+
 
 uintptr_t pGTASA = 0;
-
-ALCcontext *alcCreateContextHook(ALCdevice *dev, const ALCint *unused)
+ALCdevice* pSoundDevice = nullptr;
+ALCcontext* pDeviceContext = nullptr;
+const char* pYesNo[] = 
 {
-    logger->Info("Context created, 44100Hz sound support activated");
-    // override 22050hz with 44100hz in case someone wants high quality sounds
-    const ALCint attr[] = { ALC_FREQUENCY, 44100, 0 };
-    return alcCreateContext(dev, attr);
+    "FEM_OFF",
+    "FEM_ON",
+};
+const char* pFreq[] = 
+{
+    "22050 Hz",
+    "44100 Hz",
+};
+
+ConfigEntry* pCfg44100Frequency;
+ConfigEntry* pCfgHRTF;
+
+bool UpdateALDevice()
+{
+    const ALCint attr[] = {
+        ALC_FREQUENCY, pCfg44100Frequency->GetBool()?44100:22050,
+        ALC_HRTF_SOFT, pCfgHRTF->GetBool(),
+        0
+    };
+    return alcResetDeviceSOFT(pSoundDevice, attr);
+}
+ALCcontext *alcCreateContextHook(ALCdevice* device, const ALCint* attributes)
+{
+    pSoundDevice = device;
+    const ALCint attr[] = {
+        ALC_FREQUENCY, pCfg44100Frequency->GetBool()?44100:22050,
+        ALC_HRTF_SOFT, pCfgHRTF->GetBool(),
+        0 // END OF THE LIST
+    };
+    pDeviceContext = alcCreateContext(device, attr);
+    return pDeviceContext;
+}
+void AudioFrequencyToggled(int oldVal, int newVal)
+{
+    pCfg44100Frequency->SetInt(newVal);
+    UpdateALDevice();
+    cfg->Save();
+}
+void HRTFToggled(int oldVal, int newVal)
+{
+    pCfgHRTF->SetInt(newVal);
+    UpdateALDevice();
+    cfg->Save();
 }
 
 int ZeroReturn() { return 0; }
@@ -25,7 +70,10 @@ int ZeroReturn() { return 0; }
 extern "C" void OnModLoad()
 {
     logger->SetTag("AML OpenAL Soft");
-    pGTASA = (uintptr_t)dlopen("libGTASA.so", RTLD_LAZY); // aml->GetLib(...) return address only! We need a HANDLE FOR GetSym!
+    pCfg44100Frequency = cfg->Bind("44100hz", true);
+    pCfgHRTF = cfg->Bind("HRTF", false);
+
+    pGTASA = (uintptr_t)dlopen("libGTASA.so", RTLD_LAZY); // aml->GetLib(...) returns address only! We need a HANDLE for GetSym!
     aml->Hook((void*)aml->GetSym(pGTASA, "alAuxiliaryEffectSlotf"), (void*)alAuxiliaryEffectSlotf);
     aml->Hook((void*)aml->GetSym(pGTASA, "alAuxiliaryEffectSlotfv"), (void*)alAuxiliaryEffectSlotfv);
     aml->Hook((void*)aml->GetSym(pGTASA, "alAuxiliaryEffectSloti"), (void*)alAuxiliaryEffectSloti);
@@ -39,7 +87,7 @@ extern "C" void OnModLoad()
     aml->Hook((void*)aml->GetSym(pGTASA, "alBufferf"), (void*)alBufferf);
     aml->Hook((void*)aml->GetSym(pGTASA, "alBufferfv"), (void*)alBufferfv);
     aml->Hook((void*)aml->GetSym(pGTASA, "alBufferi"), (void*)alBufferi);
-    //aml->Hook((void*)aml->GetSym(pGTASA, "alBufferiv"), (void*)alBufferiv);
+    //aml->Hook((void*)aml->GetSym(pGTASA, "alBufferiv"), (void*)alBufferiv); // crash?
     aml->Hook((void*)aml->GetSym(pGTASA, "alDeferUpdatesSOFT"), (void*)alDeferUpdatesSOFT);
     aml->Hook((void*)aml->GetSym(pGTASA, "alDeleteAuxiliaryEffectSlots"), (void*)alDeleteAuxiliaryEffectSlots);
     aml->Hook((void*)aml->GetSym(pGTASA, "alDeleteBuffers"), (void*)alDeleteBuffers);
@@ -177,4 +225,11 @@ extern "C" void OnModLoad()
     aml->Hook((void*)aml->GetSym(pGTASA, "alcRenderSamplesSOFT"), (void*)alcRenderSamplesSOFT);
     aml->Hook((void*)aml->GetSym(pGTASA, "alcSetThreadContext"), (void*)alcSetThreadContext);
     aml->Hook((void*)aml->GetSym(pGTASA, "alcSuspendContext"), (void*)alcSuspendContext);
+
+    sautils = (ISAUtils*)GetInterface("SAUtils");
+    if(sautils != nullptr)
+    {
+        sautils->AddClickableItem(Audio, "Max Audio Frequency", pCfg44100Frequency->GetBool(), 0, sizeofA(pFreq)-1, pFreq, AudioFrequencyToggled);
+        sautils->AddClickableItem(Audio, "HRTF", pCfgHRTF->GetBool(), 0, sizeofA(pYesNo)-1, pYesNo, HRTFToggled);
+    }
 }

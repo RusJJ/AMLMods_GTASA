@@ -15,22 +15,27 @@ END_DEPLIST()
 
 /* Saves */
 uintptr_t pGTASA = 0;
-void* maincamera; // RwCamera*
 unsigned int nStreamingMemoryOverride;
 unsigned int nWaterBlocksToRender = 0;
 uintptr_t pointerWaterBlocksToRender = 0;
 float fRealAspectRatio = 0.0f;
 float fAspectRatioScaler = 0.0f;
+float flDontGetCfgValueEveryTick = 0.0f;
 
 /* Configs */
 ConfigEntry* pNearClipOverride;
-ConfigEntry* pDrawDistanceOverride; int sautilsSettingId = 0;
+ConfigEntry* pDrawDistanceOverride;
 ConfigEntry* pStreamingDistanceScale;
+ConfigEntry* pHiWaterDistanceScale;
 
 /* Lib Pointers */
+void* maincamera; // RwCamera*
 int* streamingMemoryAvailable;
-float* lodDistScale;
 void* gMobileMenu;
+float* CameraRangeMinX;
+float* CameraRangeMaxX;
+float* CameraRangeMinY;
+float* CameraRangeMaxY;
 
 /* Realloc */
 int16_t* pBlocksToBeRenderedOutsideWorldX;
@@ -79,7 +84,7 @@ DECL_HOOK(void*, CStreamingUpdate, void* self)
 
 // SAUtils
 #define DEFAULT_DRAWDISTANCE 800.0f
-char szRetDrawDistanceSlider[8];
+char szRetDrawDistanceSlider[12];
 void RealDrawDistanceChanged(int oldVal, int newVal)
 {
     pDrawDistanceOverride->SetInt(newVal);
@@ -98,6 +103,17 @@ void StreamingDistanceChanged(int oldVal, int newVal)
 const char* StreamingDistanceDraw(int nNewValue)
 {
     sprintf(szRetDrawDistanceSlider, "x%.2f", (nNewValue / 100.0f));
+    return szRetDrawDistanceSlider;
+}
+void HiWaterDistanceChanged(int oldVal, int newVal)
+{
+    pHiWaterDistanceScale->SetFloat(0.01f * newVal);
+    flDontGetCfgValueEveryTick = pHiWaterDistanceScale->GetFloat();
+    cfg->Save();
+}
+const char* HiWaterDistanceDraw(int nNewValue)
+{
+    sprintf(szRetDrawDistanceSlider, "%d%%", nNewValue);
     return szRetDrawDistanceSlider;
 }
 
@@ -156,6 +172,18 @@ void CodeRedirect(uintptr_t address, uintptr_t newAddress, bool isThumb)
 	*(uint32_t*)(code + 0) = 0xE51FF004;
 	*(const void**)(code + 4) = (const void*)newAddress;
     aml->Write(address, (uintptr_t)code, sizeof(code));
+}
+
+DECL_HOOK(void, emu_SetWater, bool set)
+{
+    emu_SetWater(set);
+    if(set)
+    {
+        //*CameraRangeMinX *= flDontGetCfgValueEveryTick;
+        *CameraRangeMaxX *= flDontGetCfgValueEveryTick;
+        //*CameraRangeMinY *= flDontGetCfgValueEveryTick;
+        *CameraRangeMaxY *= flDontGetCfgValueEveryTick;
+    }
 }
 
 extern "C" void OnModLoad()
@@ -238,10 +266,20 @@ extern "C" void OnModLoad()
         }
     }
 
+    /* Unstable + Useless */
+    //pHiWaterDistanceScale = cfg->Bind("HighWaterDistanceScale", 1.0f);
+    //flDontGetCfgValueEveryTick = pHiWaterDistanceScale->GetFloat();
+    //CameraRangeMinX = (float*)(pGTASA + 0xA1DC8C);
+    //CameraRangeMaxX = (float*)(pGTASA + 0xA1DC90);
+    //CameraRangeMinY = (float*)(pGTASA + 0xA1DC94);
+    //CameraRangeMaxY = (float*)(pGTASA + 0xA1DC98);
+    //HOOKPLT(emu_SetWater, pGTASA + 0x673530);
+
     sautils = (ISAUtils*)GetInterface("SAUtils");
     if(sautils != nullptr)
     {
         sautils->AddSliderItem(Display, "Real Draw Distance", pDrawDistanceOverride->GetInt(), 200, 4000, RealDrawDistanceChanged, RealDrawDistanceDraw);
         sautils->AddSliderItem(Display, "Streaming Distance Scale", 100 * pStreamingDistanceScale->GetFloat(), 100 * 0.25f, 100 * 5.0f, StreamingDistanceChanged, StreamingDistanceDraw);
+        //sautils->AddSliderItem(Display, "Detailed Water Draw Distance", 100 * pHiWaterDistanceScale->GetFloat(), 0, 100 * 5.0f, HiWaterDistanceChanged, HiWaterDistanceDraw);
     }
 }
