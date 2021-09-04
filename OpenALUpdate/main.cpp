@@ -1,7 +1,6 @@
 #include <mod/amlmod.h>
 #include <mod/logger.h>
 #include <mod/config.h>
-MYMODCFG(net.rusjj.gtasa.openal, OpenAL Soft, 1.0, kcat & TheOfficialFloW & RusJJ)
 
 #define sizeofA(__aVar)  ((int)(sizeof(__aVar)/sizeof(__aVar[0])))
 
@@ -14,6 +13,7 @@ MYMODCFG(net.rusjj.gtasa.openal, OpenAL Soft, 1.0, kcat & TheOfficialFloW & RusJ
 #include "isautils.h"
 ISAUtils* sautils = nullptr;
 
+MYMODCFG(net.rusjj.gtasa.openal, OpenAL Soft, 1.0, kcat & TheOfficialFloW & RusJJ)
 
 uintptr_t pGTASA = 0;
 ALCdevice* pSoundDevice = nullptr;
